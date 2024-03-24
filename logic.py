@@ -20,7 +20,7 @@ class DatabaseManager:
             conn.execute('''
             CREATE TABLE IF NOT EXISTS prizes (
                 prize_id INTEGER PRIMARY KEY,
-                image TEXT
+                image TEXT,
                 used INTEGER DEFAULT 0
             )
         ''')
@@ -30,8 +30,8 @@ class DatabaseManager:
                 user_id INTEGER,
                 prize_id INTEGER,
                 win_time TEXT,
-                FOREIGN KEY(user_id) REFERENCES users(id),
-                FOREIGN KEY(prize_id) REFERENCES prizes(id)
+                FOREIGN KEY(user_id) REFERENCES users(user_id),
+                FOREIGN KEY(prize_id) REFERENCES prizes(prize_id)
             )
         ''')
 
@@ -63,27 +63,36 @@ class DatabaseManager:
             conn.commit()
 
     def get_users(self):
-        pass
-
+        conn = sqlite3.connect(self.database)
+        with conn:
+            cur = conn.cursor()
+            cur.execute('SELECT * FROM users')
+            return [x[0] for x in cur.fetchall()] 
+            
     def get_random_prize(self):
-        pass
+        conn = sqlite3.connect(self.database)
+        with conn:
+            cur = conn.cursor()
+            cur.execute('SELECT * FROM prizes WHERE used = 0 ORDER BY RANDOM()')
+            return cur.fetchall()[0]
         
     def get_prize_img(self, prize_id):
-        pass
+        conn = sqlite3.connect(self.database)
+        with conn:
+            cur = conn.cursor()
+            cur.execute('SELECT image FROM prizes WHERE prize_id = ?', (prize_id, ))
+            return cur.fetchall()[0][0]
 
 def hide_img(img_name):
-    # Прочитать картинку
     image = cv2.imread(f'img/{img_name}')
-    # Применить эффект размытия
     blurred_image = cv2.GaussianBlur(image, (15, 15), 0)
-    # Применить эффект пикселизации
     pixelated_image = cv2.resize(blurred_image, (30, 30), interpolation=cv2.INTER_NEAREST)
     pixelated_image = cv2.resize(pixelated_image, (image.shape[1], image.shape[0]), interpolation=cv2.INTER_NEAREST)
-    # Сохранить картинку
     cv2.imwrite(f'hidden_img/{img_name}', pixelated_image)
 
 if __name__ == '__main__':
     manager = DatabaseManager(DATABASE)
+    manager.create_tables()
     prizes_img = os.listdir('img')
     data = [(x,) for x in prizes_img]
     manager.add_prize(data)
